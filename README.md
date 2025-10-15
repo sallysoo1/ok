@@ -1,1 +1,4 @@
-sed 's/,$//' iris.data | cut -d',' -f1-4 | tr ',' ' ' > dataset.txt
+
+hdfs dfs -mkdir -p /user/cloudera/input
+hdfs dfs -put dataset.txt /user/cloudera/input/
+hdfs dfs -put centroids.txt /user/cloudera/input/
