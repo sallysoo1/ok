@@ -1,69 +1,50 @@
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
 
-public class KMeansMapper extends Mapper<LongWritable, Text, Text, Text> {
-    private List<double[]> centroids = new ArrayList<>();
-    private int K;
+public class KMeansReducer extends Reducer<Text, Text, Text, Text> {
     private int NUM_FEATURES;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         Configuration conf = context.getConfiguration();
-        K = conf.getInt("K", 3);
         NUM_FEATURES = conf.getInt("NUM_FEATURES", 4);
     }
 
     @Override
-    protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-        String line = value.toString();
-        if (line.startsWith("centroid")) { // سطر centroid، يضيفه للقائمة
-            String[] parts = line.split(",");
-            double[] centroid = new double[NUM_FEATURES];
-            for (int i = 1; i <= NUM_FEATURES; i++) { // parts[0] = "centroid"
-                centroid[i-1] = Double.parseDouble(parts[i]);
+    protected void reduce(Text key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+        List<double[]> points = new ArrayList<>();
+        for (Text val : values) {
+            String[] features = val.toString().split(",");
+            double[] point = new double[NUM_FEATURES];
+            for (int i = 0; i < NUM_FEATURES; i++) {
+                point[i] = Double.parseDouble(features[i]);
             }
-            centroids.add(centroid);
-            return;
+            points.add(point);
         }
 
-        // لو data point
-        String[] features = line.split(",");
-        if (features.length != NUM_FEATURES + 1) return; // skip invalid
-        double[] point = new double[NUM_FEATURES];
+        if (points.isEmpty()) return;
+
+        // احسب sum ثم average
+        double[] sum = new double[NUM_FEATURES];
+        for (double[] p : points) {
+            for (int i = 0; i < NUM_FEATURES; i++) {
+                sum[i] += p[i];
+            }
+        }
+        double count = points.size();
         for (int i = 0; i < NUM_FEATURES; i++) {
-            point[i] = Double.parseDouble(features[i]);
-        }
-        // آخر feature هو class label، مش بنستخدمه في الـ clustering
-
-        // احسب أقرب centroid
-        int closest = 0;
-        double minDist = distance(point, centroids.get(0));
-        for (int i = 1; i < K; i++) {
-            double dist = distance(point, centroids.get(i));
-            if (dist < minDist) {
-                minDist = dist;
-                closest = i;
-            }
+            sum[i] /= count;
         }
 
-        // emit: cluster_id, point (بدون class label للـ reduce)
-        String outKey = Integer.toString(closest);
+        // emit new centroid
+        String outKey = "centroid_" + key.toString();
         String outValue = "";
-        for (int i = 0; i < NUM_FEATURES; i++) {
-            outValue += point[i] + ",";
+        for (double f : sum) {
+            outValue += f + ",";
         }
         context.write(new Text(outKey), new Text(outValue.substring(0, outValue.length() - 1)));
-    }
-
-    private double distance(double[] p1, double[] p2) {
-        double sum = 0;
-        for (int i = 0; i < p1.length; i++) {
-            sum += Math.pow(p1[i] - p2[i], 2);
-        }
-        return Math.sqrt(sum);
     }
 }
