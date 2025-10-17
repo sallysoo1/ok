@@ -412,3 +412,19 @@ public class KMeansReducer extends Reducer<IntWritable, Text, IntWritable, Text>
         context.write(key, new Text(sb.toString()));
     }
 }
+
+
+
+jar cf kmeans.jar *.class
+
+ls -l kmeans.jar
+
+hdfs dfs -rm -r -f /user/cloudera/iris_output
+
+hadoop jar kmeans.jar KMeansDriver /user/cloudera/iris_input /user/cloudera/iris_output /user/cloudera/centroids/centroids.txt
+
+
+hdfs dfs -ls /user/cloudera/iris_output
+
+
+hdfs dfs -cat /user/cloudera/iris_output/part-r-00000
