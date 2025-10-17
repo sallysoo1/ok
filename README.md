@@ -247,3 +247,8 @@ EOF
 
 
 hadoop com.sun.tools.javac.Main KMeansMapper.java KMeansReducer.java KMeansDriver.java
+
+
+
+
+javac -classpath `hadoop classpath` -d . KMeansMapper.java KMeansReducer.java KMeansDriver.java
