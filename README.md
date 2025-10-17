@@ -243,3 +243,7 @@ public class KMeansDriver {
     }
 }
 EOF
+757575757575555555555555555555555555
+
+
+hadoop com.sun.tools.javac.Main KMeansMapper.java KMeansReducer.java KMeansDriver.java
