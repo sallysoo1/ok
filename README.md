@@ -151,4 +151,43 @@ public class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, Text> 
     }
 }
 EOF
+55555555555555555555555555555555555555555
+cat > KMeansReducer.java <<'EOF'
+import java.io.IOException;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class KMeansReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
+    @Override
+    public void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+        int count = 0;
+        int dim = 4; // عدد الأعمدة (Iris dataset فيها 4 أعمدة رقمية)
+        double[] sum = new double[dim];
+
+        for (Text val : values) {
+            String[] parts = val.toString().split(",");
+            for (int i = 0; i < dim; i++) {
+                sum[i] += Double.parseDouble(parts[i]);
+            }
+            count++;
+        }
+
+        if (count == 0) return;
+
+        // حساب المتوسط لكل عمود
+        for (int i = 0; i < dim; i++) {
+            sum[i] /= count;
+        }
+
+        // نجهز المخرجات كـ String
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < dim; i++) {
+            sb.append(sum[i]);
+            if (i < dim - 1) sb.append(",");
+        }
+
+        context.write(key, new Text(sb.toString()));
+    }
+}
+EOF
 
