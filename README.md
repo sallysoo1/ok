@@ -43,4 +43,5 @@ hdfs dfs -ls /user/cloudera/centroids
 hdfs dfs -cat /user/cloudera/centroids/centroids.txt
 
 
+hdfs dfs -ls /user/cloudera/centroids
 
