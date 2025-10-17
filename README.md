@@ -20,3 +20,4 @@ hdfs dfs -mkdir -p /user/cloudera/centroids
 hdfs dfs -put -f centroids.txt /user/cloudera/centroids/centroids.txt
 hdfs dfs -cat /user/cloudera/centroids/centroids.txt
 
+hdfs dfs -ls /user/cloudera/centroids
