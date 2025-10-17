@@ -1,76 +1,68 @@
-package com.example.kmeans;
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
-public class KMeansMapper extends Mapper<LongWritable, Text, IntWritable, Text> {
-
-    private List<double[]> centroids = new ArrayList<double[]>();
-    private int numFeatures = 4;  // لـ IRIS، 4 features (dynamic لو عايز: read from first line)
+public class KMeansMapper extends Mapper<LongWritable, Text, Text, Text> {
+    private List<double[]> centroids = new ArrayList<>();
+    private int K;
+    private int NUM_FEATURES;
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
-        // Initial centroids (hardcoded for test, later from cache file)
-        centroids.add(new double[]{5.1, 3.5, 1.4, 0.2});  // Cluster 0
-        centroids.add(new double[]{7.0, 3.2, 4.7, 1.4});  // Cluster 1
-        centroids.add(new double[]{6.3, 3.3, 6.0, 2.5});  // Cluster 2
-        System.out.println("Mapper setup: Loaded " + centroids.size() + " centroids");
+        Configuration conf = context.getConfiguration();
+        K = conf.getInt("K", 3);
+        NUM_FEATURES = conf.getInt("NUM_FEATURES", 4);
     }
 
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
         String line = value.toString();
-        System.out.println("Line read: " + line);  // Debug: شوف the input line
-
-        String[] parts = line.split(",");
-        if (parts.length < numFeatures + 1) {
-            System.out.println("Skipping invalid line: " + line);  // Debug: skip bad lines
-            return;
-        }
-
-        double[] point = new double[numFeatures];
-        try {
-            for (int i = 0; i < numFeatures; i++) {
-                point[i] = Double.parseDouble(parts[i].trim());
+        if (line.startsWith("centroid")) { // سطر centroid، يضيفه للقائمة
+            String[] parts = line.split(",");
+            double[] centroid = new double[NUM_FEATURES];
+            for (int i = 1; i <= NUM_FEATURES; i++) { // parts[0] = "centroid"
+                centroid[i-1] = Double.parseDouble(parts[i]);
             }
-            System.out.println("Parsed point: " + java.util.Arrays.toString(point));  // Debug: parsed features
-        } catch (NumberFormatException e) {
-            System.out.println("Parse error: " + e.getMessage());  // Debug: parse fail
+            centroids.add(centroid);
             return;
         }
 
-        // Find closest centroid
-        int closestCluster = 0;
-        double minDist = Double.MAX_VALUE;
-        for (int i = 0; i < centroids.size(); i++) {
-            double dist = euclideanDistance(point, centroids.get(i));
+        // لو data point
+        String[] features = line.split(",");
+        if (features.length != NUM_FEATURES + 1) return; // skip invalid
+        double[] point = new double[NUM_FEATURES];
+        for (int i = 0; i < NUM_FEATURES; i++) {
+            point[i] = Double.parseDouble(features[i]);
+        }
+        // آخر feature هو class label، مش بنستخدمه في الـ clustering
+
+        // احسب أقرب centroid
+        int closest = 0;
+        double minDist = distance(point, centroids.get(0));
+        for (int i = 1; i < K; i++) {
+            double dist = distance(point, centroids.get(i));
             if (dist < minDist) {
                 minDist = dist;
-                closestCluster = i;
+                closest = i;
             }
         }
 
-        // Build pointStr (only features, ignore class)
-        String pointStr = "";
-        for (int i = 0; i < numFeatures; i++) {
-            pointStr += point[i];
-            if (i < numFeatures - 1) pointStr += ",";
+        // emit: cluster_id, point (بدون class label للـ reduce)
+        String outKey = Integer.toString(closest);
+        String outValue = "";
+        for (int i = 0; i < NUM_FEATURES; i++) {
+            outValue += point[i] + ",";
         }
-
-        System.out.println("Emitting to cluster " + closestCluster + " point: " + pointStr + " dist: " + minDist);  // Debug: emit info
-        context.write(new IntWritable(closestCluster), new Text(pointStr));
+        context.write(new Text(outKey), new Text(outValue.substring(0, outValue.length() - 1)));
     }
 
-    private double euclideanDistance(double[] p1, double[] p2) {
-        double sum = 0.0;
+    private double distance(double[] p1, double[] p2) {
+        double sum = 0;
         for (int i = 0; i < p1.length; i++) {
-            double diff = p1[i] - p2[i];
-            sum += diff * diff;
+            sum += Math.pow(p1[i] - p2[i], 2);
         }
         return Math.sqrt(sum);
     }
