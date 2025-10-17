@@ -364,3 +364,51 @@ public class KMeansReducer extends Reducer<IntWritable, Text, IntWritable, Text>
     }
 }
 
+
+
+
+
+
+
+
+import java.io.IOException;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class KMeansReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
+
+    @Override
+    public void reduce(IntWritable key, Iterable<Text> values, Context context)
+            throws IOException, InterruptedException {
+
+        int dim = 4; // عدد الأعمدة (Iris dataset)
+        double[] sum = new double[dim];
+        int count = 0;
+
+        // نجمع القيم لكل بعد
+        for (Text val : values) {
+            String[] parts = val.toString().split(",");
+            for (int i = 0; i < dim; i++) {
+                sum[i] += Double.parseDouble(parts[i]);
+            }
+            count++;
+        }
+
+        if (count == 0) return;
+
+        // نحسب المتوسط (centroid الجديد)
+        for (int i = 0; i < dim; i++) {
+            sum[i] /= count;
+        }
+
+        // نكتب المخرجات
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < dim; i++) {
+            sb.append(sum[i]);
+            if (i < dim - 1) sb.append(",");
+        }
+
+        context.write(key, new Text(sb.toString()));
+    }
+}
