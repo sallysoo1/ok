@@ -268,4 +268,58 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
+ننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننننن
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.URI;
+
+public class KMeansDriver {
+    public static void main(String[] args) throws Exception {
+        if (args.length < 3) {
+            System.err.println("Usage: KMeansDriver <input> <output> <centroids_hdfs_path>");
+            System.exit(1);
+        }
+
+        Configuration conf = new Configuration();
+
+        // اقرأ ملف المراكز من HDFS
+        String centPath = args[2];
+        FileSystem fs = FileSystem.get(new URI(centPath), conf);
+        Path p = new Path(centPath);
+        BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(p)));
+        StringBuilder sb = new StringBuilder();
+        String line;
+        while ((line = br.readLine()) != null) {
+            if (!line.trim().isEmpty()) {
+                sb.append(line).append("\n");
+            }
+        }
+        br.close();
+
+        // نحط المراكز في الـ Configuration عشان الـ Mapper يقدر يستخدمها
+        conf.set("centroids", sb.toString());
+
+        Job job = Job.getInstance(conf, "KMeans Clustering");
+        job.setJarByClass(KMeansDriver.class);
+        job.setMapperClass(KMeansMapper.class);
+        job.setReducerClass(KMeansReducer.class);
+        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
+
+        // نحدد أماكن الإدخال والإخراج
+        FileInputFormat.addInputPath(job, new Path(args[0]));
+        FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
+    }
+}
 
