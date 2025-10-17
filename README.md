@@ -322,4 +322,45 @@ public class KMeansDriver {
         System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 }
+9999999999999999999999999999999999999999999
+import java.io.IOException;
+import org.apache.hadoop.io.*;
+import org.apache.hadoop.mapreduce.Reducer;
+
+public class KMeansReducer extends Reducer<IntWritable, Text, IntWritable, Text> {
+    @Override
+    public void reduce(IntWritable key, Iterable<Text> values, Context context)
+            throws IOException, InterruptedException {
+
+        int dim = 4; // عدد الأعمدة في بيانات Iris
+        double[] sum = new double[dim];
+        int count = 0;
+
+        // جمع النقاط لكل بعد
+        for (Text val : values) {
+            String[] parts = val.toString().split(",");
+            for (int i = 0; i < dim; i++) {
+                sum[i] += Double.parseDouble(parts[i]);
+            }
+            count++;
+        }
+
+        // لو مفيش بيانات في الكلاستر ده نخرج
+        if (count == 0) return;
+
+        // نحسب المتوسط
+        for (int i = 0; i < dim; i++) {
+            sum[i] /= count;
+        }
+
+        // نبني الـ String النهائي
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < dim; i++) {
+            sb.append(sum[i]);
+            if (i < dim - 1) sb.append(",");
+        }
+
+        context.write(key, new Text(sb.toString()));
+    }
+}
 
