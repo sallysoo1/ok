@@ -1,41 +1,35 @@
 package com.example.kmeans;
 
 import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.util.GenericOptionsParser;
 
-public class KMeansReducer extends Reducer<IntWritable, Text, Text, Text> {
-
-    private int numFeatures = 4;
-
-    @Override
-    protected void reduce(IntWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
-        double[] sum = new double[numFeatures];
-        int count = 0;
-
-        for (Text value : values) {
-            String pointStr = value.toString();
-            String[] parts = pointStr.split(",");
-            double[] point = new double[numFeatures];
-            for (int i = 0; i < numFeatures; i++) {
-                point[i] = Double.parseDouble(parts[i].trim());
-            }
-            for (int i = 0; i < numFeatures; i++) {
-                sum[i] += point[i];
-            }
-            count++;
+public class KMeansDriver {
+    public static void main(String[] args) throws Exception {
+        Configuration conf = new Configuration();
+        String[] otherArgs = new GenericOptionsParser(conf, args).getRemainingArgs();
+        if (otherArgs.length != 2) {
+            System.err.println("Usage: kmeans <in> <out>");
+            System.exit(2);
         }
 
-        if (count > 0) {
-            String centroidStr = "centroid_" + key.get();
-            String newCentroidStr = "";
-            for (int i = 0; i < numFeatures; i++) {
-                double avg = sum[i] / count;
-                newCentroidStr += avg;
-                if (i < numFeatures - 1) newCentroidStr += ",";
-            }
-            context.write(new Text(centroidStr), new Text(newCentroidStr));
-        }
+        Job job = Job.getInstance(conf, "kmeans");
+        job.setJarByClass(KMeansDriver.class);
+        job.setMapperClass(KMeansMapper.class);
+        job.setCombinerClass(KMeansReducer.class); // Optional: combiner for efficiency
+        job.setReducerClass(KMeansReducer.class);
+        job.setOutputKeyClass(IntWritable.class);
+        job.setOutputValueClass(Text.class);
+
+        FileInputFormat.addInputPath(job, new Path(otherArgs[0]));
+        FileOutputFormat.setOutputPath(job, new Path(otherArgs[1]));
+
+        System.exit(job.waitForCompletion(true) ? 0 : 1);
     }
 }
